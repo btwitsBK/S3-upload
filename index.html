@@ -1,0 +1,77 @@
+<!DOCTYPE html> 
+<html lang="en"> 
+<head> 
+   <meta charset="UTF-8"> 
+   <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+   <title>S3 Simple Uploader</title> 
+   <style> 
+       body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding-top: 50px; background: #f4f4f9; } 
+       .card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 350px; } 
+       input { margin-bottom: 1rem; width: 100%; } 
+       button { width: 100%; padding: 10px; background: #ff9900; border: none; color: white; font-weight: bold; border-radius: 4px; cursor: pointer; } 
+       button:disabled { background: #ccc; } 
+       #status { margin-top: 1rem; font-size: 0.9rem; color: #555; } 
+   </style> 
+</head> 
+<body> 
+ 
+   <div class="card"> 
+       <h3>Upload to S3</h3> 
+       <input type="file" id="fileInput" accept="image/*"> 
+       <button id="uploadBtn" onclick="handleUpload()">Upload Now</button> 
+       <div id="status"></div> 
+   </div> 
+ 
+   <script> 
+       // 1. PASTE YOUR LAMBDA FUNCTION URL HERE 
+       const LAMBDA_URL = "https://your-lambda-id.lambda-url.region.on.aws/"; 
+ 
+       async function handleUpload() { 
+           const fileInput = document.getElementById('fileInput'); 
+           const status = document.getElementById('status'); 
+           const btn = document.getElementById('uploadBtn'); 
+           const file = fileInput.files[0]; 
+ 
+           if (!file) { 
+               status.innerText = "❌ Please select a file first."; 
+               return; 
+           } 
+ 
+           btn.disabled = true; 
+           status.innerText = "Step 1: Requesting secure upload link..."; 
+ 
+           try { 
+               // 2. Ask Lambda for the Presigned URL 
+               // We send filename and type so S3 knows what to expect 
+               const queryUrl = `${LAMBDA_URL}?filename=${encodeURIComponent(file.name)}&type=${file.type}`; 
+               const response = await fetch(queryUrl); 
+                
+               if (!response.ok) throw new Error("Could not get upload URL"); 
+                
+               const { uploadUrl } = await response.json(); 
+ 
+               status.innerText = "Step 2: Uploading directly to S3..."; 
+ 
+               // 3. Upload the file binary directly to S3 using PUT 
+               const upload = await fetch(uploadUrl, { 
+                   method: 'PUT', 
+                   headers: { 'Content-Type': file.type }, 
+                   body: file 
+               }); 
+ 
+               if (upload.ok) { 
+                   status.innerText = "✅ Success! File is in your bucket."; 
+               } else { 
+                   status.innerText = "❌ S3 rejected the upload. Check CORS."; 
+               } 
+ 
+           } catch (err) { 
+               console.error(err); 
+               status.innerText = "❌ Error: " + err.message; 
+           } finally { 
+               btn.disabled = false; 
+           } 
+       } 
+   </script> 
+</body> 
+</html>
