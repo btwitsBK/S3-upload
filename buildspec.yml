@@ -1,0 +1,14 @@
+version: 0.2
+phases:
+  install:
+    commands:
+      - echo "Installing dependencies..."
+  build:
+    commands:
+      - echo "Packaging Lambda..."
+      - zip function.zip Lambda_Function.py
+  post_build:
+    commands:
+      - echo "Deploying to S3 and Lambda..."
+      - aws s3 cp index.html s3://your-web-bucket-name/
+      - aws lambda update-function-code --function-name YourLambdaName --zip-file fileb://function.zip
